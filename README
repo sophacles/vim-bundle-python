@@ -1,11 +1,12 @@
 Personal stuff:
 * after/ftplugin/python/*
     just setting some vars and whatnot. ipy.vim is from back in the day when i
-	was all about ipython<->vim communication.
+    was all about ipython<->vim communication.
 
 External file sources:
-* syntax/python.vim (vimscript #790)
-    http://www.vim.org/scripts/download_script.php?src_id=12804
-
-* ftplugin/python.vim (vimscript #30)
-   http://www.vim.org/scripts/download_script.php?src_id=9196
+* syntax/python.vim (vimscript #790) by Dmitri Vasiliev
+    http://www.vim.org/scripts/script.php?script_id=790
+    current version: 2.6.6
+* ftplugin/python.vim (vimscript #30) by Jon Franklin
+    http://www.vim.org/scripts/script.php?script_id=30
+    current version: 1.13
