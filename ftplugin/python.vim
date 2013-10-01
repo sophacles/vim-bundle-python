@@ -1,446 +1,547 @@
-" -*- vim -*-
-" FILE: python_fn.vim
-" LAST MODIFICATION: 2008-08-28 8:19pm
-" (C) Copyright 2001-2005 Mikael Berthe <bmikael@lists.lilotux.net>
-" Maintained by Jon Franklin <jvfranklin@gmail.com>
-" Version: 1.13
+" Vim syntax file
+" Language:     Python
+" Maintainer:   Dmitry Vasiliev <dima at hlabs dot org>
+" URL:          https://github.com/hdima/python-syntax
+" Last Change:  2013-08-31
+" Filenames:    *.py
+" Version:      3.3.5
+"
+" Based on python.vim (from Vim 6.1 distribution)
+" by Neil Schemenauer <nas at python dot ca>
+"
+" Please use the following channels for reporting bugs, offering suggestions or
+" feedback:
 
-" USAGE:
+" - python.vim issue tracker: https://github.com/hdima/python-syntax/issues
+" - Email: Dmitry Vasiliev (dima at hlabs.org)
+" - Send a message or follow me for updates on Twitter: `@hdima
+"   <https://twitter.com/hdima>`__
 "
-" Save this file to $VIMFILES/ftplugin/python.vim. You can have multiple
-" python ftplugins by creating $VIMFILES/ftplugin/python and saving your
-" ftplugins in that directory. If saving this to the global ftplugin 
-" directory, this is the recommended method, since vim ships with an
-" ftplugin/python.vim file already.
-" You can set the global variable "g:py_select_leading_comments" to 0
-" if you don't want to select comments preceding a declaration (these
-" are usually the description of the function/class).
-" You can set the global variable "g:py_select_trailing_comments" to 0
-" if you don't want to select comments at the end of a function/class.
-" If these variables are not defined, both leading and trailing comments
-" are selected.
-" Example: (in your .vimrc) "let g:py_select_leading_comments = 0"
-" You may want to take a look at the 'shiftwidth' option for the
-" shift commands...
+" Contributors
+" ============
 "
-" REQUIREMENTS:
-" vim (>= 7)
+" List of the contributors in alphabetical order:
 "
-" Shortcuts:
-"   ]t      -- Jump to beginning of block
-"   ]e      -- Jump to end of block
-"   ]v      -- Select (Visual Line Mode) block
-"   ]<      -- Shift block to left
-"   ]>      -- Shift block to right
-"   ]#      -- Comment selection
-"   ]u      -- Uncomment selection
-"   ]c      -- Select current/previous class
-"   ]d      -- Select current/previous function
-"   ]<up>   -- Jump to previous line with the same/lower indentation
-"   ]<down> -- Jump to next line with the same/lower indentation
+"   Andrea Riciputi
+"   Anton Butanaev
+"   Caleb Adamantine
+"   Jeroen Ruigrok van der Werven
+"   John Eikenberry
+"   Marc Weber
+"   Pedro Algarvio
+"   pydave at GitHub
+"   Will Gray
+"   Yuri Habrusiev
+"
+" Options
+" =======
+"
+"    :let OPTION_NAME = 1                   Enable option
+"    :let OPTION_NAME = 0                   Disable option
+"
+"
+" Option to select Python version
+" -------------------------------
+"
+"    python_version_2                       Enable highlighting for Python 2
+"                                           (Python 3 highlighting is enabled
+"                                           by default). Can also be set as
+"                                           a buffer (b:python_version_2)
+"                                           variable.
+"
+"    You can also use the following local to buffer commands to switch
+"    between two highlighting modes:
+"
+"    :Python2Syntax                         Switch to Python 2 highlighting
+"                                           mode
+"    :Python3Syntax                         Switch to Python 3 highlighting
+"                                           mode
+"
+" Option names used by the script
+" -------------------------------
+"
+"    python_highlight_builtins              Highlight builtin functions and
+"                                           objects
+"      python_highlight_builtin_objs        Highlight builtin objects only
+"      python_highlight_builtin_funcs       Highlight builtin functions only
+"    python_highlight_exceptions            Highlight standard exceptions
+"    python_highlight_string_formatting     Highlight % string formatting
+"    python_highlight_string_format         Highlight str.format syntax
+"    python_highlight_string_templates      Highlight string.Template syntax
+"    python_highlight_indent_errors         Highlight indentation errors
+"    python_highlight_space_errors          Highlight trailing spaces
+"    python_highlight_doctests              Highlight doc-tests
+"    python_print_as_function               Highlight 'print' statement as
+"                                           function for Python 2
+"    python_highlight_file_headers_as_comments
+"                                           Highlight shebang and coding
+"                                           headers as comments
+"
+"    python_highlight_all                   Enable all the options above
+"                                           NOTE: This option don't override
+"                                           any previously set options
+"
+"    python_slow_sync                       Can be set to 0 for slow machines
+"
 
-" Only do this when not done yet for this buffer
-if exists("b:loaded_py_ftplugin")
+" For version 5.x: Clear all syntax items
+" For versions greater than 6.x: Quit when a syntax file was already loaded
+if version < 600
+  syntax clear
+elseif exists("b:current_syntax")
   finish
 endif
-let b:loaded_py_ftplugin = 1
 
-map  ]t   :PBoB<CR>
-vmap ]t   :<C-U>PBOB<CR>m'gv``
-map  ]e   :PEoB<CR>
-vmap ]e   :<C-U>PEoB<CR>m'gv``
+"
+" Commands
+"
+command! -buffer Python2Syntax let b:python_version_2 = 1 | let &syntax=&syntax
+command! -buffer Python3Syntax let b:python_version_2 = 0 | let &syntax=&syntax
 
-map  ]v   ]tV]e
-map  ]<   ]tV]e<
-vmap ]<   <
-map  ]>   ]tV]e>
-vmap ]>   >
-
-map  ]#   :call PythonCommentSelection()<CR>
-vmap ]#   :call PythonCommentSelection()<CR>
-map  ]u   :call PythonUncommentSelection()<CR>
-vmap ]u   :call PythonUncommentSelection()<CR>
-
-map  ]c   :call PythonSelectObject("class")<CR>
-map  ]d   :call PythonSelectObject("function")<CR>
-
-map  ]<up>    :call PythonNextLine(-1)<CR>
-map  ]<down>  :call PythonNextLine(1)<CR>
-" You may prefer use <s-up> and <s-down>... :-)
-
-" jump to previous class
-map  ]J   :call PythonDec("class", -1)<CR>
-vmap ]J   :call PythonDec("class", -1)<CR>
-
-" jump to next class
-map  ]j   :call PythonDec("class", 1)<CR>
-vmap ]j   :call PythonDec("class", 1)<CR>
-
-" jump to previous function
-map  ]F   :call PythonDec("function", -1)<CR>
-vmap ]F   :call PythonDec("function", -1)<CR>
-
-" jump to next function
-map  ]f   :call PythonDec("function", 1)<CR>
-vmap ]f   :call PythonDec("function", 1)<CR>
-
-
-
-" Menu entries
-nmenu <silent> &Python.Update\ IM-Python\ Menu 
-    \:call UpdateMenu()<CR>
-nmenu &Python.-Sep1- :
-nmenu <silent> &Python.Beginning\ of\ Block<Tab>[t 
-    \]t
-nmenu <silent> &Python.End\ of\ Block<Tab>]e 
-    \]e
-nmenu &Python.-Sep2- :
-nmenu <silent> &Python.Shift\ Block\ Left<Tab>]< 
-    \]<
-vmenu <silent> &Python.Shift\ Block\ Left<Tab>]< 
-    \]<
-nmenu <silent> &Python.Shift\ Block\ Right<Tab>]> 
-    \]>
-vmenu <silent> &Python.Shift\ Block\ Right<Tab>]> 
-    \]>
-nmenu &Python.-Sep3- :
-vmenu <silent> &Python.Comment\ Selection<Tab>]# 
-    \]#
-nmenu <silent> &Python.Comment\ Selection<Tab>]# 
-    \]#
-vmenu <silent> &Python.Uncomment\ Selection<Tab>]u 
-    \]u
-nmenu <silent> &Python.Uncomment\ Selection<Tab>]u 
-    \]u
-nmenu &Python.-Sep4- :
-nmenu <silent> &Python.Previous\ Class<Tab>]J 
-    \]J
-nmenu <silent> &Python.Next\ Class<Tab>]j 
-    \]j
-nmenu <silent> &Python.Previous\ Function<Tab>]F 
-    \]F
-nmenu <silent> &Python.Next\ Function<Tab>]f 
-    \]f
-nmenu &Python.-Sep5- :
-nmenu <silent> &Python.Select\ Block<Tab>]v 
-    \]v
-nmenu <silent> &Python.Select\ Function<Tab>]d 
-    \]d
-nmenu <silent> &Python.Select\ Class<Tab>]c 
-    \]c
-nmenu &Python.-Sep6- :
-nmenu <silent> &Python.Previous\ Line\ wrt\ indent<Tab>]<up> 
-    \]<up>
-nmenu <silent> &Python.Next\ Line\ wrt\ indent<Tab>]<down> 
-    \]<down>
-
-:com! PBoB execute "normal ".PythonBoB(line('.'), -1, 1)."G"
-:com! PEoB execute "normal ".PythonBoB(line('.'), 1, 1)."G"
-:com! UpdateMenu call UpdateMenu()
-
-
-" Go to a block boundary (-1: previous, 1: next)
-" If force_sel_comments is true, 'g:py_select_trailing_comments' is ignored
-function! PythonBoB(line, direction, force_sel_comments)
-  let ln = a:line
-  let ind = indent(ln)
-  let mark = ln
-  let indent_valid = strlen(getline(ln))
-  let ln = ln + a:direction
-  if (a:direction == 1) && (!a:force_sel_comments) && 
-      \ exists("g:py_select_trailing_comments") && 
-      \ (!g:py_select_trailing_comments)
-    let sel_comments = 0
-  else
-    let sel_comments = 1
+" Enable option if it's not defined
+function! s:EnableByDefault(name)
+  if !exists(a:name)
+    let {a:name} = 1
   endif
+endfunction
 
-  while((ln >= 1) && (ln <= line('$')))
-    if  (sel_comments) || (match(getline(ln), "^\\s*#") == -1)
-      if (!indent_valid)
-        let indent_valid = strlen(getline(ln))
-        let ind = indent(ln)
-        let mark = ln
-      else
-        if (strlen(getline(ln)))
-          if (indent(ln) < ind)
-            break
-          endif
-          let mark = ln
-        endif
-      endif
+" Check if option is enabled
+function! s:Enabled(name)
+  return exists(a:name) && {a:name}
+endfunction
+
+" Is it Python 2 syntax?
+function! s:Python2Syntax()
+  if exists("b:python_version_2")
+      return b:python_version_2
+  endif
+  return s:Enabled("g:python_version_2")
+endfunction
+
+"
+" Default options
+"
+
+call s:EnableByDefault("g:python_slow_sync")
+
+if s:Enabled("g:python_highlight_all")
+  call s:EnableByDefault("g:python_highlight_builtins")
+  if s:Enabled("g:python_highlight_builtins")
+    call s:EnableByDefault("g:python_highlight_builtin_objs")
+    call s:EnableByDefault("g:python_highlight_builtin_funcs")
+  endif
+  call s:EnableByDefault("g:python_highlight_exceptions")
+  call s:EnableByDefault("g:python_highlight_string_formatting")
+  call s:EnableByDefault("g:python_highlight_string_format")
+  call s:EnableByDefault("g:python_highlight_string_templates")
+  call s:EnableByDefault("g:python_highlight_indent_errors")
+  call s:EnableByDefault("g:python_highlight_space_errors")
+  call s:EnableByDefault("g:python_highlight_doctests")
+  call s:EnableByDefault("g:python_print_as_function")
+endif
+
+"
+" Keywords
+"
+
+syn keyword pythonStatement     break continue del
+syn keyword pythonStatement     exec return
+syn keyword pythonStatement     pass raise
+syn keyword pythonStatement     global assert
+syn keyword pythonStatement     lambda yield
+syn keyword pythonStatement     with
+syn keyword pythonStatement     def class nextgroup=pythonFunction skipwhite
+syn keyword pythonRepeat        for while
+syn keyword pythonConditional   if elif else
+syn keyword pythonImport        import from
+syn keyword pythonException     try except finally
+syn keyword pythonOperator      and in is not or
+
+if s:Python2Syntax()
+  if !s:Enabled("g:python_print_as_function")
+    syn keyword pythonStatement  print
+  endif
+  syn keyword pythonImport      as
+  syn match   pythonFunction    "[a-zA-Z_][a-zA-Z0-9_]*" display contained
+else
+  syn keyword pythonStatement   as nonlocal None
+  syn keyword pythonBoolean     True False
+  syn match   pythonFunction    "\%([^[:cntrl:][:space:][:punct:][:digit:]]\|_\)\%([^[:cntrl:][:punct:][:space:]]\|_\)*" display contained
+endif
+
+"
+" Decorators (new in Python 2.4)
+"
+
+syn match   pythonDecorator	"@" display nextgroup=pythonDottedName skipwhite
+syn match   pythonDottedName "[a-zA-Z_][a-zA-Z0-9_]*\%(\.[a-zA-Z_][a-zA-Z0-9_]*\)*" display contained
+syn match   pythonDot        "\." display containedin=pythonDottedName
+
+"
+" Comments
+"
+
+syn match   pythonComment	"#.*$" display contains=pythonTodo,@Spell
+if !s:Enabled("g:python_highlight_file_headers_as_comments")
+  syn match   pythonRun		"\%^#!.*$"
+  syn match   pythonCoding	"\%^.*\%(\n.*\)\?#.*coding[:=]\s*[0-9A-Za-z-_.]\+.*$"
+endif
+syn keyword pythonTodo		TODO FIXME XXX contained
+
+"
+" Errors
+"
+
+syn match pythonError		"\<\d\+\D\+\>" display
+syn match pythonError		"[$?]" display
+syn match pythonError		"[&|]\{2,}" display
+syn match pythonError		"[=]\{3,}" display
+
+" Mixing spaces and tabs also may be used for pretty formatting multiline
+" statements
+if s:Enabled("g:python_highlight_indent_errors")
+  syn match pythonIndentError	"^\s*\%( \t\|\t \)\s*\S"me=e-1 display
+endif
+
+" Trailing space errors
+if s:Enabled("g:python_highlight_space_errors")
+  syn match pythonSpaceError	"\s\+$" display
+endif
+
+"
+" Strings
+"
+
+if s:Python2Syntax()
+  " Python 2 strings
+  syn region pythonString   start=+[bB]\='+ skip=+\\\\\|\\'\|\\$+ excludenl end=+'+ end=+$+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,@Spell
+  syn region pythonString   start=+[bB]\="+ skip=+\\\\\|\\"\|\\$+ excludenl end=+"+ end=+$+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,@Spell
+  syn region pythonString   start=+[bB]\="""+ end=+"""+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,pythonDocTest2,pythonSpaceError,@Spell
+  syn region pythonString   start=+[bB]\='''+ end=+'''+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,pythonDocTest,pythonSpaceError,@Spell
+else
+  " Python 3 byte strings
+  syn region pythonBytes		start=+[bB]'+ skip=+\\\\\|\\'\|\\$+ excludenl end=+'+ end=+$+ keepend contains=pythonBytesError,pythonBytesContent,@Spell
+  syn region pythonBytes		start=+[bB]"+ skip=+\\\\\|\\"\|\\$+ excludenl end=+"+ end=+$+ keepend contains=pythonBytesError,pythonBytesContent,@Spell
+  syn region pythonBytes		start=+[bB]"""+ end=+"""+ keepend contains=pythonBytesError,pythonBytesContent,pythonDocTest2,pythonSpaceError,@Spell
+  syn region pythonBytes		start=+[bB]'''+ end=+'''+ keepend contains=pythonBytesError,pythonBytesContent,pythonDocTest,pythonSpaceError,@Spell
+
+  syn match pythonBytesError    ".\+" display contained
+  syn match pythonBytesContent  "[\u0000-\u00ff]\+" display contained contains=pythonBytesEscape,pythonBytesEscapeError
+endif
+
+syn match pythonBytesEscape       +\\[abfnrtv'"\\]+ display contained
+syn match pythonBytesEscape       "\\\o\o\=\o\=" display contained
+syn match pythonBytesEscapeError  "\\\o\{,2}[89]" display contained
+syn match pythonBytesEscape       "\\x\x\{2}" display contained
+syn match pythonBytesEscapeError  "\\x\x\=\X" display contained
+syn match pythonBytesEscape       "\\$"
+
+syn match pythonUniEscape         "\\u\x\{4}" display contained
+syn match pythonUniEscapeError    "\\u\x\{,3}\X" display contained
+syn match pythonUniEscape         "\\U\x\{8}" display contained
+syn match pythonUniEscapeError    "\\U\x\{,7}\X" display contained
+syn match pythonUniEscape         "\\N{[A-Z ]\+}" display contained
+syn match pythonUniEscapeError    "\\N{[^A-Z ]\+}" display contained
+
+if s:Python2Syntax()
+  " Python 2 Unicode strings
+  syn region pythonUniString  start=+[uU]'+ skip=+\\\\\|\\'\|\\$+ excludenl end=+'+ end=+$+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,@Spell
+  syn region pythonUniString  start=+[uU]"+ skip=+\\\\\|\\"\|\\$+ excludenl end=+"+ end=+$+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,@Spell
+  syn region pythonUniString  start=+[uU]"""+ end=+"""+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,pythonDocTest2,pythonSpaceError,@Spell
+  syn region pythonUniString  start=+[uU]'''+ end=+'''+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,pythonDocTest,pythonSpaceError,@Spell
+else
+  " Python 3 strings
+  syn region pythonString   start=+'+ skip=+\\\\\|\\'\|\\$+ excludenl end=+'+ end=+$+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,@Spell
+  syn region pythonString   start=+"+ skip=+\\\\\|\\"\|\\$+ excludenl end=+"+ end=+$+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,@Spell
+  syn region pythonString   start=+"""+ end=+"""+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,pythonDocTest2,pythonSpaceError,@Spell
+  syn region pythonString   start=+'''+ end=+'''+ keepend contains=pythonBytesEscape,pythonBytesEscapeError,pythonUniEscape,pythonUniEscapeError,pythonDocTest,pythonSpaceError,@Spell
+endif
+
+if s:Python2Syntax()
+  " Python 2 Unicode raw strings
+  syn region pythonUniRawString start=+[uU][rR]'+ skip=+\\\\\|\\'\|\\$+ excludenl end=+'+ end=+$+ keepend contains=pythonRawEscape,pythonUniRawEscape,pythonUniRawEscapeError,@Spell
+  syn region pythonUniRawString start=+[uU][rR]"+ skip=+\\\\\|\\"\|\\$+ excludenl end=+"+ end=+$+ keepend contains=pythonRawEscape,pythonUniRawEscape,pythonUniRawEscapeError,@Spell
+  syn region pythonUniRawString start=+[uU][rR]"""+ end=+"""+ keepend contains=pythonUniRawEscape,pythonUniRawEscapeError,pythonDocTest2,pythonSpaceError,@Spell
+  syn region pythonUniRawString start=+[uU][rR]'''+ end=+'''+ keepend contains=pythonUniRawEscape,pythonUniRawEscapeError,pythonDocTest,pythonSpaceError,@Spell
+
+  syn match  pythonUniRawEscape       "\([^\\]\(\\\\\)*\)\@<=\\u\x\{4}" display contained
+  syn match  pythonUniRawEscapeError  "\([^\\]\(\\\\\)*\)\@<=\\u\x\{,3}\X" display contained
+endif
+
+" Python 2/3 raw strings
+if s:Python2Syntax()
+  syn region pythonRawString  start=+[bB]\=[rR]'+ skip=+\\\\\|\\'\|\\$+ excludenl end=+'+ end=+$+ keepend contains=pythonRawEscape,@Spell
+  syn region pythonRawString  start=+[bB]\=[rR]"+ skip=+\\\\\|\\"\|\\$+ excludenl end=+"+ end=+$+ keepend contains=pythonRawEscape,@Spell
+  syn region pythonRawString  start=+[bB]\=[rR]"""+ end=+"""+ keepend contains=pythonDocTest2,pythonSpaceError,@Spell
+  syn region pythonRawString  start=+[bB]\=[rR]'''+ end=+'''+ keepend contains=pythonDocTest,pythonSpaceError,@Spell
+else
+  syn region pythonRawString  start=+[rR]'+ skip=+\\\\\|\\'\|\\$+ excludenl end=+'+ end=+$+ keepend contains=pythonRawEscape,@Spell
+  syn region pythonRawString  start=+[rR]"+ skip=+\\\\\|\\"\|\\$+ excludenl end=+"+ end=+$+ keepend contains=pythonRawEscape,@Spell
+  syn region pythonRawString  start=+[rR]"""+ end=+"""+ keepend contains=pythonDocTest2,pythonSpaceError,@Spell
+  syn region pythonRawString  start=+[rR]'''+ end=+'''+ keepend contains=pythonDocTest,pythonSpaceError,@Spell
+
+  syn region pythonRawBytes  start=+[bB][rR]'+ skip=+\\\\\|\\'\|\\$+ excludenl end=+'+ end=+$+ keepend contains=pythonRawEscape,@Spell
+  syn region pythonRawBytes  start=+[bB][rR]"+ skip=+\\\\\|\\"\|\\$+ excludenl end=+"+ end=+$+ keepend contains=pythonRawEscape,@Spell
+  syn region pythonRawBytes  start=+[bB][rR]"""+ end=+"""+ keepend contains=pythonDocTest2,pythonSpaceError,@Spell
+  syn region pythonRawBytes  start=+[bB][rR]'''+ end=+'''+ keepend contains=pythonDocTest,pythonSpaceError,@Spell
+endif
+
+syn match pythonRawEscape +\\['"]+ display transparent contained
+
+if s:Enabled("g:python_highlight_string_formatting")
+  " % operator string formatting
+  if s:Python2Syntax()
+    syn match pythonStrFormatting	"%\%(([^)]\+)\)\=[-#0 +]*\d*\%(\.\d\+\)\=[hlL]\=[diouxXeEfFgGcrs%]" contained containedin=pythonString,pythonUniString,pythonUniRawString,pythonRawString
+    syn match pythonStrFormatting	"%[-#0 +]*\%(\*\|\d\+\)\=\%(\.\%(\*\|\d\+\)\)\=[hlL]\=[diouxXeEfFgGcrs%]" contained containedin=pythonString,pythonUniString,pythonUniRawString,pythonRawString
+  else
+    syn match pythonStrFormatting	"%\%(([^)]\+)\)\=[-#0 +]*\d*\%(\.\d\+\)\=[hlL]\=[diouxXeEfFgGcrs%]" contained containedin=pythonString,pythonRawString
+    syn match pythonStrFormatting	"%[-#0 +]*\%(\*\|\d\+\)\=\%(\.\%(\*\|\d\+\)\)\=[hlL]\=[diouxXeEfFgGcrs%]" contained containedin=pythonString,pythonRawString
+  endif
+endif
+
+if s:Enabled("g:python_highlight_string_format")
+  " str.format syntax
+  if s:Python2Syntax()
+    syn match pythonStrFormat "{{\|}}" contained containedin=pythonString,pythonUniString,pythonUniRawString,pythonRawString
+    syn match pythonStrFormat	"{\%(\%([^[:cntrl:][:space:][:punct:][:digit:]]\|_\)\%([^[:cntrl:][:punct:][:space:]]\|_\)*\|\d\+\)\=\%(\.\%([^[:cntrl:][:space:][:punct:][:digit:]]\|_\)\%([^[:cntrl:][:punct:][:space:]]\|_\)*\|\[\%(\d\+\|[^!:\}]\+\)\]\)*\%(![rsa]\)\=\%(:\%({\%(\%([^[:cntrl:][:space:][:punct:][:digit:]]\|_\)\%([^[:cntrl:][:punct:][:space:]]\|_\)*\|\d\+\)}\|\%([^}]\=[<>=^]\)\=[ +-]\=#\=0\=\d*,\=\%(\.\d\+\)\=[bcdeEfFgGnosxX%]\=\)\=\)\=}" contained containedin=pythonString,pythonUniString,pythonUniRawString,pythonRawString
+  else
+    syn match pythonStrFormat "{{\|}}" contained containedin=pythonString,pythonRawString
+    syn match pythonStrFormat	"{\%(\%([^[:cntrl:][:space:][:punct:][:digit:]]\|_\)\%([^[:cntrl:][:punct:][:space:]]\|_\)*\|\d\+\)\=\%(\.\%([^[:cntrl:][:space:][:punct:][:digit:]]\|_\)\%([^[:cntrl:][:punct:][:space:]]\|_\)*\|\[\%(\d\+\|[^!:\}]\+\)\]\)*\%(![rsa]\)\=\%(:\%({\%(\%([^[:cntrl:][:space:][:punct:][:digit:]]\|_\)\%([^[:cntrl:][:punct:][:space:]]\|_\)*\|\d\+\)}\|\%([^}]\=[<>=^]\)\=[ +-]\=#\=0\=\d*,\=\%(\.\d\+\)\=[bcdeEfFgGnosxX%]\=\)\=\)\=}" contained containedin=pythonString,pythonRawString
+  endif
+endif
+
+if s:Enabled("g:python_highlight_string_templates")
+  " string.Template format
+  if s:Python2Syntax()
+    syn match pythonStrTemplate	"\$\$" contained containedin=pythonString,pythonUniString,pythonUniRawString,pythonRawString
+    syn match pythonStrTemplate	"\${[a-zA-Z_][a-zA-Z0-9_]*}" contained containedin=pythonString,pythonUniString,pythonUniRawString,pythonRawString
+    syn match pythonStrTemplate	"\$[a-zA-Z_][a-zA-Z0-9_]*" contained containedin=pythonString,pythonUniString,pythonUniRawString,pythonRawString
+  else
+    syn match pythonStrTemplate	"\$\$" contained containedin=pythonString,pythonRawString
+    syn match pythonStrTemplate	"\${[a-zA-Z_][a-zA-Z0-9_]*}" contained containedin=pythonString,pythonRawString
+    syn match pythonStrTemplate	"\$[a-zA-Z_][a-zA-Z0-9_]*" contained containedin=pythonString,pythonRawString
+  endif
+endif
+
+if s:Enabled("g:python_highlight_doctests")
+  " DocTests
+  syn region pythonDocTest	start="^\s*>>>" end=+'''+he=s-1 end="^\s*$" contained
+  syn region pythonDocTest2	start="^\s*>>>" end=+"""+he=s-1 end="^\s*$" contained
+endif
+
+"
+" Numbers (ints, longs, floats, complex)
+"
+
+if s:Python2Syntax()
+  syn match   pythonHexError	"\<0[xX]\x*[g-zG-Z]\+\x*[lL]\=\>" display
+  syn match   pythonOctError	"\<0[oO]\=\o*\D\+\d*[lL]\=\>" display
+  syn match   pythonBinError	"\<0[bB][01]*\D\+\d*[lL]\=\>" display
+
+  syn match   pythonHexNumber	"\<0[xX]\x\+[lL]\=\>" display
+  syn match   pythonOctNumber "\<0[oO]\o\+[lL]\=\>" display
+  syn match   pythonBinNumber "\<0[bB][01]\+[lL]\=\>" display
+
+  syn match   pythonNumberError	"\<\d\+\D[lL]\=\>" display
+  syn match   pythonNumber	"\<\d[lL]\=\>" display
+  syn match   pythonNumber	"\<[0-9]\d\+[lL]\=\>" display
+  syn match   pythonNumber	"\<\d\+[lLjJ]\>" display
+
+  syn match   pythonOctError	"\<0[oO]\=\o*[8-9]\d*[lL]\=\>" display
+  syn match   pythonBinError	"\<0[bB][01]*[2-9]\d*[lL]\=\>" display
+else
+  syn match   pythonHexError	"\<0[xX]\x*[g-zG-Z]\x*\>" display
+  syn match   pythonOctError	"\<0[oO]\=\o*\D\+\d*\>" display
+  syn match   pythonBinError	"\<0[bB][01]*\D\+\d*\>" display
+
+  syn match   pythonHexNumber	"\<0[xX]\x\+\>" display
+  syn match   pythonOctNumber "\<0[oO]\o\+\>" display
+  syn match   pythonBinNumber "\<0[bB][01]\+\>" display
+
+  syn match   pythonNumberError	"\<\d\+\D\>" display
+  syn match   pythonNumberError	"\<0\d\+\>" display
+  syn match   pythonNumber	"\<\d\>" display
+  syn match   pythonNumber	"\<[1-9]\d\+\>" display
+  syn match   pythonNumber	"\<\d\+[jJ]\>" display
+
+  syn match   pythonOctError	"\<0[oO]\=\o*[8-9]\d*\>" display
+  syn match   pythonBinError	"\<0[bB][01]*[2-9]\d*\>" display
+endif
+
+syn match   pythonFloat		"\.\d\+\%([eE][+-]\=\d\+\)\=[jJ]\=\>" display
+syn match   pythonFloat		"\<\d\+[eE][+-]\=\d\+[jJ]\=\>" display
+syn match   pythonFloat		"\<\d\+\.\d*\%([eE][+-]\=\d\+\)\=[jJ]\=" display
+
+"
+" Builtin objects and types
+"
+
+if s:Enabled("g:python_highlight_builtin_objs")
+  if s:Python2Syntax()
+    syn keyword pythonBuiltinObj	None
+    syn keyword pythonBoolean		True False
+  endif
+  syn keyword pythonBuiltinObj	Ellipsis NotImplemented
+  syn keyword pythonBuiltinObj	__debug__ __doc__ __file__ __name__ __package__
+endif
+
+"
+" Builtin functions
+"
+
+if s:Enabled("g:python_highlight_builtin_funcs")
+  if s:Python2Syntax()
+    syn keyword pythonBuiltinFunc	apply basestring buffer callable coerce
+    syn keyword pythonBuiltinFunc	execfile file help intern long raw_input
+    syn keyword pythonBuiltinFunc	reduce reload unichr unicode xrange
+    if s:Enabled("g:python_print_as_function")
+      syn keyword pythonBuiltinFunc	print
     endif
-    let ln = ln + a:direction
-  endwhile
-
-  return mark
-endfunction
-
-
-" Go to previous (-1) or next (1) class/function definition
-function! PythonDec(obj, direction)
-  if (a:obj == "class")
-    let objregexp = "^\\s*class\\s\\+[a-zA-Z0-9_]\\+"
-        \ . "\\s*\\((\\([a-zA-Z0-9_,. \\t\\n]\\)*)\\)\\=\\s*:"
   else
-    let objregexp = "^\\s*def\\s\\+[a-zA-Z0-9_]\\+\\s*(\\_[^:#]*)\\s*:"
+    syn keyword pythonBuiltinFunc	ascii exec memoryview print
   endif
-  let flag = "W"
-  if (a:direction == -1)
-    let flag = flag."b"
-  endif
-  let res = search(objregexp, flag)
-endfunction
+  syn keyword pythonBuiltinFunc	__import__ abs all any
+  syn keyword pythonBuiltinFunc	bin bool bytearray bytes
+  syn keyword pythonBuiltinFunc	chr classmethod cmp compile complex
+  syn keyword pythonBuiltinFunc	delattr dict dir divmod enumerate eval
+  syn keyword pythonBuiltinFunc	filter float format frozenset getattr
+  syn keyword pythonBuiltinFunc	globals hasattr hash hex id
+  syn keyword pythonBuiltinFunc	input int isinstance
+  syn keyword pythonBuiltinFunc	issubclass iter len list locals map max
+  syn keyword pythonBuiltinFunc	min next object oct open ord
+  syn keyword pythonBuiltinFunc	pow property range
+  syn keyword pythonBuiltinFunc	repr reversed round set setattr
+  syn keyword pythonBuiltinFunc	slice sorted staticmethod str sum super tuple
+  syn keyword pythonBuiltinFunc	type vars zip
+endif
 
+"
+" Builtin exceptions and warnings
+"
 
-" Comment out selected lines
-" commentString is inserted in non-empty lines, and should be aligned with
-" the block
-function! PythonCommentSelection()  range
-  let commentString = "#"
-  let cl = a:firstline
-  let ind = 1000    " I hope nobody use so long lines! :)
-
-  " Look for smallest indent
-  while (cl <= a:lastline)
-    if strlen(getline(cl))
-      let cind = indent(cl)
-      let ind = ((ind < cind) ? ind : cind)
-    endif
-    let cl = cl + 1
-  endwhile
-  if (ind == 1000)
-    let ind = 1
+if s:Enabled("g:python_highlight_exceptions")
+  if s:Python2Syntax()
+    syn keyword pythonExClass	StandardError
   else
-    let ind = ind + 1
+    syn keyword pythonExClass	BlockingIOError ChildProcessError
+    syn keyword pythonExClass	ConnectionError BrokenPipeError
+    syn keyword pythonExClass	ConnectionAbortedError ConnectionRefusedError
+    syn keyword pythonExClass	ConnectionResetError FileExistsError
+    syn keyword pythonExClass	FileNotFoundError InterruptedError
+    syn keyword pythonExClass	IsADirectoryError NotADirectoryError
+    syn keyword pythonExClass	PermissionError ProcessLookupError TimeoutError
+
+    syn keyword pythonExClass	ResourceWarning
   endif
+  syn keyword pythonExClass	BaseException
+  syn keyword pythonExClass	Exception ArithmeticError
+  syn keyword pythonExClass	LookupError EnvironmentError
 
-  let cl = a:firstline
-  execute ":".cl
-  " Insert commentString in each non-empty line, in column ind
-  while (cl <= a:lastline)
-    if strlen(getline(cl))
-      execute "normal ".ind."|i".commentString
-    endif
-    execute "normal \<Down>"
-    let cl = cl + 1
-  endwhile
-endfunction
+  syn keyword pythonExClass	AssertionError AttributeError BufferError EOFError
+  syn keyword pythonExClass	FloatingPointError GeneratorExit IOError
+  syn keyword pythonExClass	ImportError IndexError KeyError
+  syn keyword pythonExClass	KeyboardInterrupt MemoryError NameError
+  syn keyword pythonExClass	NotImplementedError OSError OverflowError
+  syn keyword pythonExClass	ReferenceError RuntimeError StopIteration
+  syn keyword pythonExClass	SyntaxError IndentationError TabError
+  syn keyword pythonExClass	SystemError SystemExit TypeError
+  syn keyword pythonExClass	UnboundLocalError UnicodeError
+  syn keyword pythonExClass	UnicodeEncodeError UnicodeDecodeError
+  syn keyword pythonExClass	UnicodeTranslateError ValueError VMSError
+  syn keyword pythonExClass	WindowsError ZeroDivisionError
 
-" Uncomment selected lines
-function! PythonUncommentSelection()  range
-  " commentString could be different than the one from CommentSelection()
-  " For example, this could be "# \\="
-  let commentString = "#"
-  let cl = a:firstline
-  while (cl <= a:lastline)
-    let ul = substitute(getline(cl),
-             \"\\(\\s*\\)".commentString."\\(.*\\)$", "\\1\\2", "")
-    call setline(cl, ul)
-    let cl = cl + 1
-  endwhile
-endfunction
+  syn keyword pythonExClass	Warning UserWarning BytesWarning DeprecationWarning
+  syn keyword pythonExClass	PendingDepricationWarning SyntaxWarning
+  syn keyword pythonExClass	RuntimeWarning FutureWarning
+  syn keyword pythonExClass	ImportWarning UnicodeWarning
+endif
 
+if s:Enabled("g:python_slow_sync")
+  syn sync minlines=2000
+else
+  " This is fast but code inside triple quoted strings screws it up. It
+  " is impossible to fix because the only way to know if you are inside a
+  " triple quoted string is to start from the beginning of the file.
+  syn sync match pythonSync grouphere NONE "):$"
+  syn sync maxlines=200
+endif
 
-" Select an object ("class"/"function")
-function! PythonSelectObject(obj)
-  " Go to the object declaration
-  normal $
-  call PythonDec(a:obj, -1)
-  let beg = line('.')
-
-  if !exists("g:py_select_leading_comments") || (g:py_select_leading_comments)
-    let decind = indent(beg)
-    let cl = beg
-    while (cl>1)
-      let cl = cl - 1
-      if (indent(cl) == decind) && (getline(cl)[decind] == "#")
-        let beg = cl
-      else
-        break
-      endif
-    endwhile
-  endif
-
-  if (a:obj == "class")
-    let eod = "\\(^\\s*class\\s\\+[a-zA-Z0-9_]\\+\\s*"
-            \ . "\\((\\([a-zA-Z0-9_,. \\t\\n]\\)*)\\)\\=\\s*\\)\\@<=:"
+if version >= 508 || !exists("did_python_syn_inits")
+  if version <= 508
+    let did_python_syn_inits = 1
+    command -nargs=+ HiLink hi link <args>
   else
-   let eod = "\\(^\\s*def\\s\\+[a-zA-Z0-9_]\\+\\s*(\\_[^:#]*)\\s*\\)\\@<=:"
+    command -nargs=+ HiLink hi def link <args>
   endif
-  " Look for the end of the declaration (not always the same line!)
-  call search(eod, "")
 
-  " Is it a one-line definition?
-  if match(getline('.'), "^\\s*\\(#.*\\)\\=$", col('.')) == -1
-    let cl = line('.')
-    execute ":".beg
-    execute "normal V".cl."G"
+  HiLink pythonStatement        Statement
+  HiLink pythonImport           Include
+  HiLink pythonFunction         Function
+  HiLink pythonConditional      Conditional
+  HiLink pythonRepeat           Repeat
+  HiLink pythonException        Exception
+  HiLink pythonOperator         Operator
+
+  HiLink pythonDecorator        Define
+  HiLink pythonDottedName       Function
+  HiLink pythonDot              Normal
+
+  HiLink pythonComment          Comment
+  if !s:Enabled("g:python_highlight_file_headers_as_comments")
+    HiLink pythonCoding           Special
+    HiLink pythonRun              Special
+  endif
+  HiLink pythonTodo             Todo
+
+  HiLink pythonError            Error
+  HiLink pythonIndentError      Error
+  HiLink pythonSpaceError       Error
+
+  HiLink pythonString           String
+  HiLink pythonRawString        String
+
+  HiLink pythonUniEscape        Special
+  HiLink pythonUniEscapeError   Error
+
+  if s:Python2Syntax()
+    HiLink pythonUniString          String
+    HiLink pythonUniRawString       String
+    HiLink pythonUniRawEscape       Special
+    HiLink pythonUniRawEscapeError  Error
   else
-    " Select the whole block
-    execute "normal \<Down>"
-    let cl = line('.')
-    execute ":".beg
-    execute "normal V".PythonBoB(cl, 1, 0)."G"
+    HiLink pythonBytes              String
+    HiLink pythonRawBytes           String
+    HiLink pythonBytesContent       String
+    HiLink pythonBytesError         Error
+    HiLink pythonBytesEscape        Special
+    HiLink pythonBytesEscapeError   Error
   endif
-endfunction
 
+  HiLink pythonStrFormatting    Special
+  HiLink pythonStrFormat        Special
+  HiLink pythonStrTemplate      Special
 
-" Jump to the next line with the same (or lower) indentation
-" Useful for moving between "if" and "else", for example.
-function! PythonNextLine(direction)
-  let ln = line('.')
-  let ind = indent(ln)
-  let indent_valid = strlen(getline(ln))
-  let ln = ln + a:direction
+  HiLink pythonDocTest          Special
+  HiLink pythonDocTest2         Special
 
-  while((ln >= 1) && (ln <= line('$')))
-    if (!indent_valid) && strlen(getline(ln)) 
-        break
-    else
-      if (strlen(getline(ln)))
-        if (indent(ln) <= ind)
-          break
-        endif
-      endif
-    endif
-    let ln = ln + a:direction
-  endwhile
+  HiLink pythonNumber           Number
+  HiLink pythonHexNumber        Number
+  HiLink pythonOctNumber        Number
+  HiLink pythonBinNumber        Number
+  HiLink pythonFloat            Float
+  HiLink pythonNumberError      Error
+  HiLink pythonOctError         Error
+  HiLink pythonHexError         Error
+  HiLink pythonBinError         Error
 
-  execute "normal ".ln."G"
-endfunction
+  HiLink pythonBoolean          Boolean
 
-function! UpdateMenu()
-  " delete menu if it already exists, then rebuild it.
-  " this is necessary in case you've got multiple buffers open
-  " a future enhancement to this would be to make the menu aware of
-  " all buffers currently open, and group classes and functions by buffer
-  if exists("g:menuran")
-    aunmenu IM-Python
-  endif
-  let restore_fe = &foldenable
-  set nofoldenable
-  " preserve disposition of window and cursor
-  let cline=line('.')
-  let ccol=col('.') - 1
-  norm H
-  let hline=line('.')
-  " create the menu
-  call MenuBuilder()
-  " restore disposition of window and cursor
-  exe "norm ".hline."Gzt"
-  let dnscroll=cline-hline
-  exe "norm ".dnscroll."j".ccol."l"
-  let &foldenable = restore_fe
-endfunction
+  HiLink pythonBuiltinObj       Structure
+  HiLink pythonBuiltinFunc      Function
 
-function! MenuBuilder()
-  norm gg0
-  let currentclass = -1
-  let classlist = []
-  let parentclass = ""
-  while line(".") < line("$")
-    " search for a class or function
-    if match ( getline("."), '^\s*class\s\+[_a-zA-Z].*\|^\s*def\s\+[_a-zA-Z].*' ) != -1
-      norm ^
-      let linenum = line('.')
-      let indentcol = col('.')
-      norm "nye
-      let classordef=@n
-      norm w"nywge
-      let objname=@n
-      let parentclass = FindParentClass(classlist, indentcol)
-      if classordef == "class"
-        call AddClass(objname, linenum, parentclass)
-      else " this is a function
-        call AddFunction(objname, linenum, parentclass)
-      endif
-      " We actually created a menu, so lets set the global variable
-      let g:menuran=1
-      call RebuildClassList(classlist, [objname, indentcol], classordef)
-    endif " line matched
-    norm j
-  endwhile
-endfunction
+  HiLink pythonExClass          Structure
 
-" classlist contains the list of nested classes we are in.
-" in most cases it will be empty or contain a single class
-" but where a class is nested within another, it will contain 2 or more
-" this function adds or removes classes from the list based on indentation
-function! RebuildClassList(classlist, newclass, classordef)
-  let i = len(a:classlist) - 1
-  while i > -1
-    if a:newclass[1] <= a:classlist[i][1]
-      call remove(a:classlist, i)
-    endif
-    let i = i - 1
-  endwhile
-  if a:classordef == "class"
-    call add(a:classlist, a:newclass)
-  endif
-endfunction
+  delcommand HiLink
+endif
 
-" we found a class or function, determine its parent class based on
-" indentation and what's contained in classlist
-function! FindParentClass(classlist, indentcol)
-  let i = 0
-  let parentclass = ""
-  while i < len(a:classlist)
-    if a:indentcol <= a:classlist[i][1]
-      break
-    else
-      if len(parentclass) == 0
-        let parentclass = a:classlist[i][0]
-      else
-        let parentclass = parentclass.'\.'.a:classlist[i][0]
-      endif
-    endif
-    let i = i + 1
-  endwhile
-  return parentclass
-endfunction
-
-" add a class to the menu
-function! AddClass(classname, lineno, parentclass)
-  if len(a:parentclass) > 0
-    let classstring = a:parentclass.'\.'.a:classname
-  else
-    let classstring = a:classname
-  endif
-  exe 'menu IM-Python.classes.'.classstring.' :call <SID>JumpToAndUnfold('.a:lineno.')<CR>'
-endfunction
-
-" add a function to the menu, grouped by member class
-function! AddFunction(functionname, lineno, parentclass)
-  if len(a:parentclass) > 0
-    let funcstring = a:parentclass.'.'.a:functionname
-  else
-    let funcstring = a:functionname
-  endif
-  exe 'menu IM-Python.functions.'.funcstring.' :call <SID>JumpToAndUnfold('.a:lineno.')<CR>'
-endfunction
-
-
-function! s:JumpToAndUnfold(line)
-  " Go to the right line
-  execute 'normal '.a:line.'gg'
-  " Check to see if we are in a fold
-  let lvl = foldlevel(a:line)
-  if lvl != 0
-    " and if so, then expand the fold out, other wise, ignore this part.
-    execute 'normal 15zo'
-  endif
-endfunction
-
-"" This one will work only on vim 6.2 because of the try/catch expressions.
-" function! s:JumpToAndUnfoldWithExceptions(line)
-"  try 
-"    execute 'normal '.a:line.'gg15zo'
-"  catch /^Vim\((\a\+)\)\=:E490:/
-"    " Do nothing, just consume the error
-"  endtry
-"endfunction
-
-
-" vim:set et sts=2 sw=2:
-
+let b:current_syntax = "python"
